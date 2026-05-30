@@ -1,0 +1,12 @@
+{
+  "name": "insta-monitor",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "discord.js": "^14.0.0",
+    "dotenv": "^16.0.0",
+    "node-cron": "^3.0.0",
+    "axios": "^1.0.0",
+    "simple-json-db": "^2.0.0"
+  }
+}

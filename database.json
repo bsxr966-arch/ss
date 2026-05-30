@@ -1,0 +1,39 @@
+{
+    "name": "instagram-ban-monitor",
+    "version": "1.0.0",
+    "description": "Instagram Ban Monitor Discord Bot",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js"
+    },
+    "dependencies": {
+        "discord.js": "^14.15.3",
+        "dotenv": "^16.4.5",
+        "axios": "^1.7.2",
+        "node-cron": "^3.0.3",
+        "simple-json-db": "^2.0.0"
+    },
+    "monitorList": [
+        {
+            "username": "arcase1971_eyod",
+            "reason": "N/A",
+            "followers": 0,
+            "lastStatusWasBanned": true,
+            "addedAt": "2026-05-30T22:28:24.826Z"
+        }
+    ],
+    "historyList": [
+        {
+            "username": "rezafezaxo201856386",
+            "status": "unbanned",
+            "date": "2026-05-30T20:30:00.627Z",
+            "reason": "Ban lifted"
+        },
+        {
+            "username": "unraxoipit199446691",
+            "status": "unbanned",
+            "date": "2026-05-30T20:50:02.780Z",
+            "reason": "Ban lifted"
+        }
+    ]
+}
