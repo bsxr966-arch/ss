@@ -67,10 +67,24 @@ async function checkInstagramUser(username) {
       return { status: 'banned', message: 'User not found (404)', followers: 0 };
     }
     if (e.response && e.response.status === 401) {
-      return { status: 'error', message: 'Request flagged (401)', followers: 0 };
+      return {
+        status: 'error',
+        message: 'Request flagged (401)',
+        followers: 0
+      };
     }
     if (e.response && e.response.status === 429) {
-      return { status: 'error', message: 'Rate limited (429)', followers: 0 };
+      console.log('====================================');
+      console.log('INSTAGRAM RATE LIMIT (429)');
+      console.log('Username:', username);
+      console.log('Response:', e.response.data);
+      console.log('====================================');
+
+      return {
+        status: 'error',
+        message: 'Rate limited (429)',
+        followers: 0
+      };
     }
     return { status: 'error', message: e.message, followers: 0 };
   }
@@ -408,8 +422,8 @@ client.on('interactionCreate', async interaction => {
       const embed = new EmbedBuilder()
         .setColor('#00aaff')
         .setTitle(' Instagram Ban Monitor - Help')
-        .setDescription(`
-**Commands:**
+        .setDescription(
+`**Commands:**
 \`/check <username>\` - Check if user is banned
 \`/monitor <username>\` - Add user to monitoring
 \`/monitor-list\` - Show monitored users
@@ -421,8 +435,8 @@ client.on('interactionCreate', async interaction => {
 🔴 Ban detection → Notification in #bans channel + Webhook
 🟢 Unban detection → Notification via Webhook only
  Auto-check every 10 minutes
- Full history with timestamps
-        `)
+ Full history with timestamps`
+        )
         .setImage('https://i.imgur.com/ouxoMH3.jpeg')
         .setFooter({
           text: '@Lie | Instagram Ban Monitor',
