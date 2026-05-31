@@ -31,21 +31,18 @@ const client = new Client({
 // RAPIDAPI CONFIG
 // ============================================================
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || '9b1a4918c9mshdac0ef62110df83p146c79jsn43095edc6a23';
-const RAPIDAPI_HOST = 'instagram120.p.rapidapi.com';
 
 // ============================================================
 // CHECK INSTAGRAM USER via RapidAPI
 // ============================================================
 async function checkInstagramUser(username) {
   try {
-    const res = await axios.post(
-      `https://${RAPIDAPI_HOST}/api/instagram/posts`,
-      { username: username, maxId: "" },
+    const res = await axios.get(
+      `https://instagram-profile1.p.rapidapi.com/getprofile/${username}`,
       {
         timeout: 20000,
         headers: {
-          'Content-Type': 'application/json',
-          'x-rapidapi-host': RAPIDAPI_HOST,
+          'x-rapidapi-host': 'instagram-profile1.p.rapidapi.com',
           'x-rapidapi-key': RAPIDAPI_KEY
         }
       }
@@ -53,30 +50,21 @@ async function checkInstagramUser(username) {
 
     const data = res.data;
 
-    // التحقق من البيانات
     if (data && (data.id || data.pk)) {
-      const followers = data.follower_count || data.followers || 0;
       return {
         status: 'active',
         message: 'User is active',
-        followers: followers
+        followers: data.followers || data.follower_count || data.edge_followed_by?.count || 0
       };
     }
 
-    if (data && data.status === 'fail') {
-      return { status: 'banned', message: 'User not found / restricted', followers: 0 };
+    if (data && data.error) {
+      return { status: 'banned', message: data.error || 'User not found', followers: 0 };
     }
 
-    // لو رجع username فارغ أو error
-    if (!data || data.error) {
-      return { status: 'banned', message: 'User not found', followers: 0 };
-    }
+    return { status: 'banned', message: 'User not found', followers: 0 };
 
-    return { 
-      status: 'active', 
-      message: 'User exists', 
-      followers: data.follower_count || data.followers || 0 };
-    } catch (e) {
+  } catch (e) {
     if (e.response && e.response.status === 404) {
       return { status: 'banned', message: 'User not found (404)', followers: 0 };
     }
@@ -166,7 +154,7 @@ client.once('ready', async () => {
             { name: 'Profile URL', value: `instagram.com/${entry.username}`, inline: false },
             { name: 'Reason', value: entry.reason || 'Account banned / not found', inline: false },
             { name: 'Time Taken', value: getTimeTaken(entry.username), inline: false },
-            { name: 'Status', value: '\uD83D\uDD34 BANNED', inline: false }
+            { name: 'Status', value: '🔴 BANNED', inline: false }
           )
           .setImage('https://i.imgur.com/ouxoMH3.jpeg')
           .setFooter({ text: `@Lie | Today at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`, iconURL: 'https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png' });
@@ -188,7 +176,7 @@ client.once('ready', async () => {
           .addFields(
             { name: `${result.followers.toLocaleString()} followers`, value: '\u200B', inline: false },
             { name: 'Profile URL', value: `instagram.com/${entry.username}`, inline: false },
-            { name: 'Status', value: '\uD83D\uDFE2 ACTIVE', inline: false }
+            { name: 'Status', value: '🟢 ACTIVE', inline: false }
           )
           .setImage('https://i.imgur.com/ouxoMH3.jpeg')
           .setFooter({ text: `@Lie | Today at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`, iconURL: 'https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png' });
@@ -214,7 +202,7 @@ client.on('interactionCreate', async interaction => {
 
   if (interaction.commandName === 'check') {
     const username = interaction.options.getString('username');
-    await interaction.reply(`\uD83D\uDD0D Checking @${username}...`);
+    await interaction.reply(`🔍 Checking @${username}...`);
 
     const result = await checkInstagramUser(username);
 
@@ -224,7 +212,7 @@ client.on('interactionCreate', async interaction => {
         .addFields(
           { name: `${result.followers.toLocaleString()} followers`, value: '\u200B', inline: false },
           { name: 'Profile URL', value: `instagram.com/${username}`, inline: false },
-          { name: 'Status', value: '\uD83D\uDFE2 ACTIVE', inline: false }
+          { name: 'Status', value: '🟢 ACTIVE', inline: false }
         )
         .setImage('https://i.imgur.com/ouxoMH3.jpeg')
         .setFooter({ text: `@Lie | Today at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`, iconURL: 'https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png' });
@@ -237,7 +225,7 @@ client.on('interactionCreate', async interaction => {
         .addFields(
           { name: '0 followers', value: '\u200B' },
           { name: 'Profile URL', value: `instagram.com/${username}` },
-          { name: 'Status', value: '\uD83D\uDD34 BANNED' }
+          { name: 'Status', value: '🔴 BANNED' }
         )
         .setImage('https://i.imgur.com/ouxoMH3.jpeg')
         .setFooter({ text: `@Lie | Today at ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`, iconURL: 'https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png' });
@@ -245,41 +233,41 @@ client.on('interactionCreate', async interaction => {
       await interaction.editReply({ content: `The Account "@${username}" Banned`, embeds: [embed] });
 
     } else {
-      await interaction.editReply(`\u274C Error: ${result.message}`);
+      await interaction.editReply(`❌ Error: ${result.message}`);
     }
   }
 
   if (interaction.commandName === 'monitor') {
     const username = interaction.options.getString('username').toLowerCase();
-    if (monitorList.find(m => m.username === username)) return interaction.reply(`\u26A0\uFE0F @${username} is already monitored.`);
+    if (monitorList.find(m => m.username === username)) return interaction.reply(`⚠️ @${username} is already monitored.`);
 
-    await interaction.reply(`\uD83D\uDD0D Checking @${username}...`);
+    await interaction.reply(`🔍 Checking @${username}...`);
     const result = await checkInstagramUser(username);
-    if (result.status === 'error') return interaction.editReply(`\u274C Error: ${result.message}`);
+    if (result.status === 'error') return interaction.editReply(`❌ Error: ${result.message}`);
 
     monitorList.push({ username, reason: 'N/A', followers: result.followers, lastStatusWasBanned: (result.status === 'banned'), addedAt: new Date().toISOString() });
     saveDb();
-    await interaction.editReply(`\u2705 Added @${username} to monitoring list.`);
+    await interaction.editReply(`✅ Added @${username} to monitoring list.`);
   }
 
   if (interaction.commandName === 'monitor-list') {
     if (monitorList.length === 0) return interaction.reply('No monitored users.');
-    const list = monitorList.map((m, i) => `**${i+1}.** @${m.username} | Status: ${m.lastStatusWasBanned ? '\uD83D\uDD34 BANNED' : '\uD83D\uDFE2 ACTIVE'}`).join('\n');
+    const list = monitorList.map((m, i) => `**${i+1}.** @${m.username} | Status: ${m.lastStatusWasBanned ? '🔴 BANNED' : '🟢 ACTIVE'}`).join('\n');
     await interaction.reply({ embeds: [new EmbedBuilder().setColor('#00aaff').setTitle('Monitored Users').setDescription(list).setFooter({ text: `Total: ${monitorList.length}` })] });
   }
 
   if (interaction.commandName === 'monitor-remove') {
     const username = interaction.options.getString('username').toLowerCase();
     const idx = monitorList.findIndex(m => m.username === username);
-    if (idx === -1) return interaction.reply(`\u26A0\uFE0F @${username} not found.`);
+    if (idx === -1) return interaction.reply(`⚠️ @${username} not found.`);
     monitorList.splice(idx, 1);
     saveDb();
-    await interaction.reply(`\u2705 Removed @${username} from monitoring list.`);
+    await interaction.reply(`✅ Removed @${username} from monitoring list.`);
   }
 
   if (interaction.commandName === 'history') {
     if (historyList.length === 0) return interaction.reply('No history yet.');
-    const entries = historyList.slice(-20).reverse().map((h, i) => `**${i+1}.** @${h.username} | ${h.status === 'banned' ? '\uD83D\uDD34 BANNED' : '\uD83D\uDFE2 UNBANNED'} | ${new Date(h.date).toLocaleString()}`).join('\n');
+    const entries = historyList.slice(-20).reverse().map((h, i) => `**${i+1}.** @${h.username} | ${h.status === 'banned' ? '🔴 BANNED' : '🟢 UNBANNED'} | ${new Date(h.date).toLocaleString()}`).join('\n');
     await interaction.reply({ embeds: [new EmbedBuilder().setColor('#00aaff').setTitle('History').setDescription(entries)] });
   }
 
