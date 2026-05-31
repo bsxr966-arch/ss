@@ -8,6 +8,7 @@ require('dotenv').config();
 const cron = require('node-cron');
 const axios = require('axios');
 const JSONdb = require('simple-json-db');
+const fs = require('fs');
 
 const db = new JSONdb('database.json');
 
@@ -28,34 +29,34 @@ const client = new Client({
 });
 
 // ============================================================
-// GET MID COOKIE
+// LOAD COOKIES FROM FILE
 // ============================================================
-async function getMidCookie() {
-  try {
-    const resp = await axios.get('https://www.instagram.com/', {
-      timeout: 10000,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
-      }
-    });
-    const cookies = resp.headers['set-cookie'];
-    if (cookies) {
-      const mid = cookies.find(c => c.startsWith('mid='));
-      return mid ? mid.split(';')[0] : '';
-    }
-    return '';
-  } catch (e) {
-    console.log('Failed to get mid cookie:', e.message);
-    return '';
-  }
+let cookies = [];
+try {
+  const raw = fs.readFileSync('cookies.json', 'utf8');
+  cookies = JSON.parse(raw);
+  console.log(`Loaded ${cookies.length} cookies from cookies.json`);
+} catch (e) {
+  console.log('No cookies.json found or failed to parse. Running without cookies.');
+}
+
+let currentCookieIndex = 0;
+
+function getNextCookie() {
+  if (cookies.length === 0) return '';
+  const cookie = cookies[currentCookieIndex];
+  currentCookieIndex = (currentCookieIndex + 1) % cookies.length;
+  console.log(`Using cookie ${currentCookieIndex}/${cookies.length}`);
+  return cookie;
 }
 
 // ============================================================
 // CHECK INSTAGRAM USER
 // ============================================================
 async function checkInstagramUser(username) {
+  const cookie = getNextCookie();
+
   try {
-    const midCookie = await getMidCookie();
     const res = await axios.get(
       `https://i.instagram.com/api/v1/users/web_profile_info/?username=${username}`,
       {
@@ -68,7 +69,7 @@ async function checkInstagramUser(username) {
           'Accept-Language': 'en-US,en;q=0.9',
           'Referer': 'https://www.instagram.com/',
           'Origin': 'https://www.instagram.com',
-          'Cookie': midCookie
+          'Cookie': cookie
         }
       }
     );
@@ -78,9 +79,9 @@ async function checkInstagramUser(username) {
       if (!userData) {
         return { status: 'banned', message: 'User not found / restricted', followers: 0 };
       }
-      return { 
-        status: 'active', 
-        message: 'User is active', 
+      return {
+        status: 'active',
+        message: 'User is active',
         followers: userData.edge_followed_by?.count || 0
       };
     }
@@ -92,6 +93,7 @@ async function checkInstagramUser(username) {
       return { status: 'banned', message: 'User not found (404)', followers: 0 };
     }
     if (e.response && e.response.status === 401) {
+      console.log('Cookie may be invalid (401). Trying next cookie on next request.');
       return {
         status: 'error',
         message: 'Request flagged (401)',
@@ -102,7 +104,8 @@ async function checkInstagramUser(username) {
       console.log('====================================');
       console.log('INSTAGRAM RATE LIMIT (429)');
       console.log('Username:', username);
-      console.log('Response:', e.response.data);
+      console.log('Cookie index that failed:', currentCookieIndex - 1);
+      console.log('Response data:', e.response.data);
       console.log('====================================');
 
       return {
@@ -122,7 +125,7 @@ function getTimeTaken(username) {
   const banEntry = historyList
     .filter(h => h.username === username && h.status === 'banned')
     .pop();
-  
+
   if (!banEntry) return 'N/A';
 
   const banTime = new Date(banEntry.date).getTime();
@@ -209,7 +212,7 @@ client.once('ready', async () => {
 
   cron.schedule('*/10 * * * *', async () => {
     console.log('Monitor check running...');
-    
+
     for (const entry of monitorList) {
       const result = await checkInstagramUser(entry.username);
 
@@ -235,7 +238,6 @@ client.once('ready', async () => {
             iconURL: 'https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png'
           });
 
-        // Send to Discord channel
         const channel = client.channels.cache.find(c => c.name === 'bans');
         if (channel) {
           await channel.send({
@@ -244,7 +246,6 @@ client.once('ready', async () => {
           });
         }
 
-        // Send to webhook
         await sendWebhookNotification(embed, `The Account "@${entry.username}" Banned`);
 
         historyList.push({
@@ -254,7 +255,7 @@ client.once('ready', async () => {
           reason: entry.reason || 'Account banned / not found'
         });
         saveDb();
-      
+
       // ====== USER GOT UNBANNED ======
       } else if (result.status === 'active' && entry.lastStatusWasBanned) {
         entry.lastStatusWasBanned = false;
@@ -279,7 +280,6 @@ client.once('ready', async () => {
             iconURL: 'https://upload.wikimedia.org/wikipedia/commons/a/a5/Instagram_icon.png'
           });
 
-        // Send to webhook ONLY (no Discord channel)
         await sendWebhookNotification(embed, `The Account "@${entry.username}" Unbanned Successfully`);
 
         historyList.push({
@@ -396,7 +396,7 @@ client.on('interactionCreate', async interaction => {
         return interaction.reply(' No users in monitor list.');
       }
 
-      const list = monitorList.map((m, i) => 
+      const list = monitorList.map((m, i) =>
         `**${i + 1}.** @${m.username} | Followers: ${m.followers.toLocaleString()} | Status: ${m.lastStatusWasBanned ? '🔴 BANNED' : '🟢 ACTIVE'}`
       ).join('\n');
 
