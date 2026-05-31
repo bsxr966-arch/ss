@@ -28,10 +28,34 @@ const client = new Client({
 });
 
 // ============================================================
+// GET MID COOKIE
+// ============================================================
+async function getMidCookie() {
+  try {
+    const resp = await axios.get('https://www.instagram.com/', {
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
+      }
+    });
+    const cookies = resp.headers['set-cookie'];
+    if (cookies) {
+      const mid = cookies.find(c => c.startsWith('mid='));
+      return mid ? mid.split(';')[0] : '';
+    }
+    return '';
+  } catch (e) {
+    console.log('Failed to get mid cookie:', e.message);
+    return '';
+  }
+}
+
+// ============================================================
 // CHECK INSTAGRAM USER
 // ============================================================
 async function checkInstagramUser(username) {
   try {
+    const midCookie = await getMidCookie();
     const res = await axios.get(
       `https://i.instagram.com/api/v1/users/web_profile_info/?username=${username}`,
       {
@@ -43,7 +67,8 @@ async function checkInstagramUser(username) {
           'Accept-Encoding': 'gzip, deflate, br',
           'Accept-Language': 'en-US,en;q=0.9',
           'Referer': 'https://www.instagram.com/',
-          'Origin': 'https://www.instagram.com'
+          'Origin': 'https://www.instagram.com',
+          'Cookie': midCookie
         }
       }
     );
